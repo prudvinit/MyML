@@ -20,8 +20,12 @@ class Optimizer(Enum):
     BATCH_GRAD = 2
     MINI_BATCH_GRAD = 3
     
+class Regularization(Enum):
+    LASSO = 1
+    RIDGE = 2
+    
 class LinearRegression:
-    def __init__(self,x,y,alpha=0.01,cost=Cost.MSE,Lambda=0,optimizer=Optimizer.BATCH_GRAD):
+    def __init__(self,x,y,alpha=0.01,cost=Cost.MSE,Lambda=0,optimizer=Optimizer.BATCH_GRAD,regularization=None):
         self.input = x
         t = []
         #Adding dimension X[0]=1, to accomodate bias
@@ -36,6 +40,7 @@ class LinearRegression:
         self.optimizer = optimizer
         #Regularization parameter
         self.Lambda = Lambda
+        self.regularization = regularization
         
     def train(self,iterations=100):
         if self.optimizer == Optimizer.BATCH_GRAD:
@@ -77,24 +82,35 @@ class LinearRegression:
                 error = error + abs(self.y[i]-np.dot(self.coef,self.x[i]))
             return error
                 
+    def __regularize__(self,weight):
+        if self.regularization==None:
+            return 0
+        if self.regularization==Regularization.LASSO:
+            if weight<0:
+                return -self.Lambda
+            return self.Lambda
+        if self.regularization==Regularization.RIDGE:
+            return self.Lambda * 2 * weight
+        return None
+        
     def diff(self,x,y):
         if self.optimizer == Optimizer.BATCH_GRAD:
             tcoef = []
             for c in range(len(self.coef)):
                 const = 0
                 for i in range(len(x)):
-                    const = const +(-2/len(x))* (self.y[i]-np.dot(self.coef,self.x[i]))*(self.x[i][c])
-                tcoef.append(const)
+                    const = const +(-2/len(x))* (self.y[i]-np.dot(self.coef,self.x[i]))*(self.x[i][c]) 
+                tcoef.append(const + self.__regularize__(self.coef[c]))
             tcoef = np.array(tcoef)
             return tcoef
         
         if self.optimizer == Optimizer.SGD:
             tcoef = []
-            #print('X : ',x,' , Y : ',y)
             for c in range(len(self.coef)):
-                const = (-2*x[c])*(y-np.dot(self.coef,x))
+                const = (-2*x[c])*(y-np.dot(self.coef,x)) + self.__regularize__(self.coef[c])
                 tcoef.append(const)
             return np.array(tcoef)
+            
             
     def predict(self,x_new):        
         return self.coef*np.insert(x_new,0,1)
@@ -116,7 +132,8 @@ if __name__ == '__main__':
         
     x = np.array(x)
     y = np.array(y)
-    l = LinearRegression(x,y,cost=Cost.MSE,Lambda=0,optimizer=Optimizer.SGD)
+    l = LinearRegression(x,y,cost=Cost.MSE,Lambda=1,optimizer=Optimizer.SGD,regularization=Regularization.RIDGE)
+    #l = LinearRegression(x,y,cost=Cost.MSE,Lambda=0,optimizer=Optimizer.SGD)
     l.train(iterations=1000)
     l.plotInput()
     l.plot_errors()
