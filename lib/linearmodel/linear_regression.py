@@ -9,6 +9,7 @@ import numpy as np
 from enum import Enum
 import math
 import matplotlib.pyplot as plt
+import random
 
 class Cost(Enum):
     MSE = 1
@@ -44,6 +45,13 @@ class LinearRegression:
                 self.errors.append(error)
                 self.coef = self.coef - self.alpha*self.diff(self.x,self.y)
             
+        if self.optimizer == Optimizer.SGD:
+            for i in range(iterations):
+                error = self.getError(self.x,self.y)
+                self.errors.append(error)
+                sample = random.randint(0,len(self.x)-1)
+                self.coef = self.coef - self.alpha*self.diff(self.x[sample],self.y[sample])
+                
     def train_tolerannce(self,e=0.05):
         error = self.getError()
         self.errors.append(error)
@@ -79,6 +87,14 @@ class LinearRegression:
                 tcoef.append(const)
             tcoef = np.array(tcoef)
             return tcoef
+        
+        if self.optimizer == Optimizer.SGD:
+            tcoef = []
+            #print('X : ',x,' , Y : ',y)
+            for c in range(len(self.coef)):
+                const = (-2*x[c])*(y-np.dot(self.coef,x))
+                tcoef.append(const)
+            return np.array(tcoef)
             
     def predict(self,x_new):        
         return self.coef*np.insert(x_new,0,1)
@@ -100,6 +116,7 @@ if __name__ == '__main__':
         
     x = np.array(x)
     y = np.array(y)
-    l = LinearRegression(x,y,cost=Cost.MSE,Lambda=0,optimizer=Optimizer.BATCH_GRAD)
+    l = LinearRegression(x,y,cost=Cost.MSE,Lambda=0,optimizer=Optimizer.SGD)
     l.train(iterations=1000)
     l.plotInput()
+    l.plot_errors()
